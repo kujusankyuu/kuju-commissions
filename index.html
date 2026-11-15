@@ -13,6 +13,18 @@ const CONFIG = {
   webhook: "PASTE_YOUR_WEBHOOK_URL_HERE",
   repo: "kujusankyuu/kuju-commissions",
 };
+// Prices for the estimate (keep in sync with Carrd). [low, high] = range.
+const PRICES = {
+  "Full Render – Headshot":  { base: 65,  extra: 0.80, bg: [0, 30, 80], props: [0, [10,10], [30,60]] },
+  "Full Render – Half Body": { base: 95,  extra: 0.80, bg: [0, 30, 80], props: [0, [10,10], [30,60]] },
+  "Full Render – Full Body": { base: 140, extra: 0.80, bg: [0, 30, 80], props: [0, [10,10], [30,60]] },
+  "Chibi – Half Body": { base: 25, extraFlat: 20, bg: [0, 10, 25], props: [0, [5,5], [10,20]] },
+  "Chibi – Full Body": { base: 40, extraFlat: 30, bg: [0, 10, 25], props: [0, [5,5], [10,20]] },
+  "Animation – Animatic / Storyboard": { perSec: 5 },
+  "Animation – Cartoon (chibi, flat color)": { perSec: 10 },
+  "Animation – Full Render": { perSec: 15 },
+};
+const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
 </script>
 
 <style>
@@ -47,6 +59,10 @@ const CONFIG = {
   .hp { position:absolute; left:-9999px; }
   button { margin-top:22px; width:100%; padding:14px; font:inherit; font-weight:800; color:#fff; background:var(--pink); border:3px solid #000; border-radius:99px; cursor:pointer; }
   button:disabled { opacity:.6; cursor:wait; }
+  #estimate { margin-top:20px; padding:14px; text-align:center; background:var(--pink-l); border:2px solid #000; border-radius:14px; font-weight:800; font-size:1.3rem; }
+  #estimate small { display:block; font-size:.75rem; font-weight:400; }
+  #estimate:empty, #opts.none { display:none; }
+  #opts.isAnim .still, #opts:not(.isAnim) .anim { display:none; }
   #msg { text-align:center; font-weight:600; margin-top:14px; }
   .row [contenteditable] { outline:none; border-bottom:2px dashed var(--pink); padding:2px; }
   .row input[type=range] { width:100%; accent-color:var(--pink); padding:0; border:0; }
@@ -99,8 +115,18 @@ const CONFIG = {
       <option value="">Choose one…</option>
       <optgroup label="Full Render"><option>Full Render – Headshot</option><option>Full Render – Half Body</option><option>Full Render – Full Body</option></optgroup>
       <optgroup label="Chibi"><option>Chibi – Half Body</option><option>Chibi – Full Body</option></optgroup>
-      <optgroup label="Other"><option>Animation</option><option>Other / Not sure</option></optgroup>
+      <optgroup label="Animation"><option>Animation – Animatic / Storyboard</option><option>Animation – Cartoon (chibi, flat color)</option><option>Animation – Full Render</option></optgroup>
+      <optgroup label="Other"><option>Other / Not sure</option></optgroup>
     </select>
+    <div id="opts">
+      <div class="still"><label>Extra characters</label><input name="extra" type="number" min="0" max="10" value="0"></div>
+      <div class="anim"><label>Animation length (seconds)</label><input name="secs" type="number" min="1" value="5"></div>
+      <label>Background</label>
+      <select name="bg"><option value="0">Plain / solid color (free)</option><option value="1">Simple</option><option value="2">Detailed</option></select>
+      <div class="still"><label>Props</label>
+      <select name="props"><option value="0">None</option><option value="1">Small (cup, phone…)</option><option value="2">Complex (car, weapon, pet…)</option></select></div>
+      <label class="chk"><input type="checkbox" name="rush"> Rush (+30%)</label>
+    </div>
     <label>Email *</label><input name="email" type="email" required>
     <label>Commission details *</label>
     <textarea name="details" required placeholder="Pose, expressions, atmosphere, background/props, rush, reference links…"></textarea>
@@ -112,6 +138,7 @@ const CONFIG = {
     <label>Can I post the finished piece? *</label>
     <label class="chk"><input type="radio" name="posting" value="Yes, can post" required> Yes, you can post it</label>
     <label class="chk"><input type="radio" name="posting" value="WITHHOLD - do not post"> No, please keep it private</label>
+    <div id="estimate"></div>
     <button>Send Request</button>
     <div id="msg"></div>
   </form>
@@ -182,8 +209,36 @@ $("saveBtn").onclick = async () => {
 
 fetch("queue.json?" + Date.now()).then(r => r.json()).then(d => { data = d; render(); });
 
-// ---- Form -> Discord ----
 const form = document.getElementById("form"), msg = document.getElementById("msg");
+// ---- Estimate ----
+function estimate() {
+  const d = Object.fromEntries(new FormData(form)), p = PRICES[d.type];
+  const opts = $("opts");
+  opts.classList.toggle("none", !p);
+  if (!p) return $("estimate").textContent = "", null;
+  opts.classList.toggle("isAnim", !!p.perSec);
+  let lo, hi, base, plus = false;
+  if (p.perSec) {
+    base = p.perSec * Math.max(1, +d.secs || 1);
+    lo = hi = base + (d.bg > 0 ? base * ANIM_BG : 0);
+  } else {
+    base = p.base;
+    const n = Math.max(0, +d.extra || 0);
+    lo = hi = base + n * (p.extraFlat ?? Math.round(base * p.extra)) + p.bg[d.bg];
+    const pr = p.props[d.props]; if (pr) { lo += pr[0]; hi += pr[1]; }
+    plus = d.bg == 2;
+  }
+  if (d.commercial === "Yes") { lo += base * COMMERCIAL; hi += base * COMMERCIAL; }
+  if (d.rush) { lo *= 1 + RUSH; hi *= 1 + RUSH; }
+  const txt = (lo === hi ? `$${Math.round(lo)}` : `$${Math.round(lo)}–$${Math.round(hi)}`) + (plus ? "+" : "");
+  $("estimate").innerHTML = `Estimate: ${txt}<small>Final price confirmed after I review your request.</small>`;
+  return txt;
+}
+form.addEventListener("input", estimate);
+form.addEventListener("change", estimate);
+estimate();
+
+// ---- Form -> Discord ----
 form.addEventListener("submit", async e => {
   e.preventDefault();
   const fd = new FormData(form), d = Object.fromEntries(fd);
@@ -202,7 +257,8 @@ form.addEventListener("submit", async e => {
       title: `New request: ${d.type}`.slice(0, 256),
       color: 0xff007f,
       fields: [field("Name", d.name), field("Queue name", d.anon ? "Anonymous" : d.name), field("Contact", d.handle),
-               field("Email", d.email), field("Commercial use", d.commercial), field("Posting", d.posting)],
+               field("Email", d.email), field("Commercial use", d.commercial), field("Posting", d.posting),
+               ...(PRICES[d.type] ? [field("Options", PRICES[d.type].perSec ? `${d.secs}s, bg: ${["plain","simple","detailed"][d.bg]}` : `extra chars: ${d.extra}, bg: ${["plain","simple","detailed"][d.bg]}, props: ${["none","small","complex"][d.props]}`), field("Rush", d.rush ? "Yes" : "No"), field("Estimate", estimate())] : [])],
       description: d.details.slice(0, 4000),
       timestamp: new Date().toISOString(),
     }],
@@ -211,7 +267,7 @@ form.addEventListener("submit", async e => {
   try {
     const r = await fetch(CONFIG.webhook, { method: "POST", body });
     if (!r.ok) throw 0;
-    form.reset(); msg.textContent = "Sent! I'll get back to you within a week ★";
+    form.reset(); estimate(); msg.textContent = "Sent! I'll get back to you within a week ★";
   } catch {
     msg.textContent = "Couldn't send. Please DM me on Discord or Twitter instead.";
   }
