@@ -161,7 +161,8 @@ function render() {
   document.body.classList.toggle("editing", editing);
   $("status").textContent = data.status;
   $("status").classList.toggle("closed", data.status !== "OPEN");
-  $("count").textContent = `${data.queue.filter(q => q.progress < 100).length}/${data.slots}`;
+  const open = Math.max(0, data.slots - data.queue.filter(q => q.progress < 100).length);
+  $("count").textContent = `${open}/${data.slots}`;
   let html = data.queue.map((q, i) => editing
     ? `<div class="row"><span contenteditable data-i="${i}" data-k="name">${esc(q.name)}</span><span contenteditable data-i="${i}" data-k="type">${esc(q.type)}</span>
        <div class="prog"><input type="range" min="0" max="100" step="5" value="${q.progress}" data-i="${i}"><div class="stage">${stage(q.progress)} · ${q.progress}%</div></div>
