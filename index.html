@@ -7,22 +7,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Baloo&family=Alexandria:wght@400;600;800&display=swap" rel="stylesheet">
 
-<!-- ================= EDIT HERE ================= -->
 <script>
 const CONFIG = {
-  status: "OPEN",          // OPEN or CLOSED
-  slots: 5,                // max active commissions
-  // Discord webhook URL (or your Cloudflare Worker URL — see README)
+  // Discord webhook URL (or your Cloudflare Worker URL)
   webhook: "PASTE_YOUR_WEBHOOK_URL_HERE",
+  repo: "kujusankyuu/kuju-commissions",
 };
 </script>
-<!-- Queue: one commission per line ->  Name | Type | Stage
-     Stages: Waiting, Sketch, Lineart, Color, Render, Done -->
-<script type="text/plain" id="queue">
-Kat | Illustration | Sketch
-noa | Animation | Sketch
-</script>
-<!-- ============================================= -->
 
 <style>
   :root { --pink:#ff007f; --pink-l:#ffd0e6; --ink:#111; }
@@ -57,6 +48,16 @@ noa | Animation | Sketch
   button { margin-top:22px; width:100%; padding:14px; font:inherit; font-weight:800; color:#fff; background:var(--pink); border:3px solid #000; border-radius:99px; cursor:pointer; }
   button:disabled { opacity:.6; cursor:wait; }
   #msg { text-align:center; font-weight:600; margin-top:14px; }
+  .row [contenteditable] { outline:none; border-bottom:2px dashed var(--pink); padding:2px; }
+  .row input[type=range] { width:100%; accent-color:var(--pink); padding:0; border:0; }
+  .x { width:auto; margin:0 0 0 6px; padding:0 8px; font-size:.8rem; border-width:2px; background:#333; }
+  #tools { display:none; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  #tools button { margin:0; width:auto; flex:1; padding:10px 16px; }
+  .editing #tools { display:flex; }
+  .editing .row { grid-template-columns:1fr 1fr 2fr auto; }
+  .chk { display:flex; gap:8px; align-items:center; font-weight:400; }
+  .chk input { width:auto; }
+  #editLink { display:block; text-align:center; margin-top:40px; color:#fff8; font-size:.75rem; }
   @media (max-width:560px){ .row{grid-template-columns:1fr 1fr;} .row .prog{grid-column:1/-1;} }
 </style>
 </head>
@@ -76,6 +77,12 @@ noa | Animation | Sketch
   <p style="margin-top:0">Currently accepting: <b id="count"></b></p>
   <div class="row head"><span>Client</span><span>Type</span><span>Progress</span></div>
   <div id="list"></div>
+  <div id="tools">
+    <button type="button" id="addBtn">+ Add client</button>
+    <button type="button" id="statusBtn">Toggle open/closed</button>
+    <button type="button" id="saveBtn">Save</button>
+  </div>
+  <div id="saveMsg" class="stage" style="text-align:center"></div>
 </div>
 
 <h2 id="contact">★ Contact ★</h2>
@@ -84,6 +91,7 @@ noa | Animation | Sketch
   <form id="form">
     <input class="hp" name="website" tabindex="-1" autocomplete="off">
     <label>Name / Brand *</label><input name="name" required>
+    <label class="chk"><input type="checkbox" name="anon"> Show me as "Anonymous" in the public queue</label>
     <label>Discord or Twitter username *</label><input name="handle" required placeholder="@">
     <label>Commission Type *</label>
     <select name="type" required>
@@ -101,26 +109,71 @@ noa | Animation | Sketch
     <div id="msg"></div>
   </form>
 </div>
+<a href="#" id="editLink">✎ edit queue</a>
 
 <script>
 // ---- Queue ----
-const STAGES = ["Waiting","Sketch","Lineart","Color","Render","Done"];
-const rows = document.getElementById("queue").textContent.trim().split("\n")
-  .map(l => l.split("|").map(s => s.trim())).filter(r => r[0]);
-const active = rows.filter(r => r[2] !== "Done").length;
-const st = document.getElementById("status");
-st.textContent = CONFIG.status;
-if (CONFIG.status !== "OPEN") st.classList.add("closed");
-document.getElementById("count").textContent = `${active}/${CONFIG.slots}`;
-const list = document.getElementById("list");
-const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-for (let i = 0; i < Math.max(rows.length, CONFIG.slots); i++) {
-  const [name, type, stage] = rows[i] || [];
-  const pct = name ? Math.round(Math.max(0, STAGES.indexOf(stage)) / (STAGES.length - 1) * 100) : 0;
-  list.insertAdjacentHTML("beforeend", name
-    ? `<div class="row"><span>⭐ ${esc(name)}</span><span>${esc(type||"")}</span><div class="prog"><div class="bar"><i style="width:${pct}%"></i></div><div class="stage">${esc(stage||"")}</div></div></div>`
-    : `<div class="row empty"><span>⭐ Open slot</span><span>—</span><span></span></div>`);
+let data = { status:"OPEN", slots:5, queue:[] }, sha = null, editing = false;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const stage = p => p >= 100 ? "Done" : p >= 75 ? "Render" : p >= 50 ? "Color" : p >= 25 ? "Lineart" : p > 0 ? "Sketch" : "Waiting";
+
+function render() {
+  document.body.classList.toggle("editing", editing);
+  $("status").textContent = data.status;
+  $("status").classList.toggle("closed", data.status !== "OPEN");
+  $("count").textContent = `${data.queue.filter(q => q.progress < 100).length}/${data.slots}`;
+  let html = data.queue.map((q, i) => editing
+    ? `<div class="row"><span contenteditable data-i="${i}" data-k="name">${esc(q.name)}</span><span contenteditable data-i="${i}" data-k="type">${esc(q.type)}</span>
+       <div class="prog"><input type="range" min="0" max="100" step="5" value="${q.progress}" data-i="${i}"><div class="stage">${stage(q.progress)} · ${q.progress}%</div></div>
+       <button type="button" class="x" data-del="${i}">✕</button></div>`
+    : `<div class="row"><span>⭐ ${esc(q.name)}</span><span>${esc(q.type)}</span><div class="prog"><div class="bar"><i style="width:${q.progress}%"></i></div><div class="stage">${stage(q.progress)}</div></div></div>`
+  ).join("");
+  for (let i = data.queue.length; i < data.slots; i++)
+    html += `<div class="row empty"><span>⭐ Open slot</span><span>—</span><span></span></div>`;
+  $("list").innerHTML = html;
 }
+
+$("list").addEventListener("input", e => {
+  const t = e.target, q = data.queue[t.dataset.i];
+  if (!q) return;
+  if (t.type === "range") { q.progress = +t.value; t.nextElementSibling.textContent = `${stage(q.progress)} · ${q.progress}%`; }
+  else q[t.dataset.k] = t.textContent.trim();
+});
+$("list").addEventListener("click", e => {
+  if (e.target.dataset.del) { data.queue.splice(e.target.dataset.del, 1); render(); }
+});
+$("addBtn").onclick = () => { data.queue.push({ name:"New client", type:"Illustration", progress:0 }); render(); };
+$("statusBtn").onclick = () => { data.status = data.status === "OPEN" ? "CLOSED" : "OPEN"; render(); };
+
+$("editLink").onclick = e => {
+  e.preventDefault();
+  let token = localStorage.getItem("ghToken");
+  if (!token) {
+    token = prompt("Paste your GitHub token (only saved in this browser):");
+    if (!token) return;
+    localStorage.setItem("ghToken", token.trim());
+  }
+  editing = true; render(); $("queue").scrollIntoView();
+};
+
+const api = `https://api.github.com/repos/${CONFIG.repo}/contents/queue.json`;
+$("saveBtn").onclick = async () => {
+  const headers = { Authorization: "Bearer " + localStorage.getItem("ghToken"), Accept: "application/vnd.github+json" };
+  $("saveMsg").textContent = "Saving…";
+  try {
+    if (!sha) sha = (await (await fetch(api, { headers })).json()).sha;
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2) + "\n")));
+    const r = await fetch(api, { method:"PUT", headers, body: JSON.stringify({ message:"Update queue", content, sha }) });
+    if (r.status === 401) { localStorage.removeItem("ghToken"); throw "Token rejected. Click edit again to re-enter it."; }
+    if (!r.ok) throw "Save failed (" + r.status + ").";
+    sha = (await r.json()).content.sha;
+    editing = false; render();
+    $("saveMsg").textContent = "Saved! The public page updates in about a minute.";
+  } catch (err) { $("saveMsg").textContent = typeof err === "string" ? err : "Save failed."; }
+};
+
+fetch("queue.json?" + Date.now()).then(r => r.json()).then(d => { data = d; render(); });
 
 // ---- Form -> Discord ----
 const form = document.getElementById("form"), msg = document.getElementById("msg");
@@ -141,7 +194,7 @@ form.addEventListener("submit", async e => {
         embeds: [{
           title: `New request: ${d.type}`.slice(0, 256),
           color: 0xff007f,
-          fields: [field("Name", d.name), field("Contact", d.handle), field("PayPal", d.paypal),
+          fields: [field("Name", d.name), field("Queue name", d.anon ? "Anonymous" : d.name), field("Contact", d.handle), field("PayPal", d.paypal),
                    field("Character type", d.ctype), field("Character", d.cname)],
           description: d.details.slice(0, 4000),
           timestamp: new Date().toISOString(),
