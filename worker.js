@@ -8,7 +8,7 @@ export default {
     const cors = { "Access-Control-Allow-Origin": ORIGIN, "Access-Control-Allow-Headers": "Content-Type" };
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
     if (req.method !== "POST" || req.headers.get("Origin") !== ORIGIN) return new Response("No", { status: 403 });
-    const r = await fetch(env.WEBHOOK, { method: "POST", headers: { "Content-Type": "application/json" }, body: await req.text() });
+    const r = await fetch(env.WEBHOOK, { method: "POST", headers: { "Content-Type": req.headers.get("Content-Type") }, body: req.body });
     return new Response(null, { status: r.ok ? 204 : 502, headers: cors });
   },
 };

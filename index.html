@@ -56,6 +56,7 @@ const CONFIG = {
   .editing #tools { display:flex; }
   .editing .row { grid-template-columns:1fr 1fr 2fr auto; }
   .chk { display:flex; gap:8px; align-items:center; font-weight:400; }
+  .chk { margin:6px 0; }
   .chk input { width:auto; }
   #editLink { display:block; text-align:center; margin-top:40px; color:#fff8; font-size:.75rem; }
   @media (max-width:560px){ .row{grid-template-columns:1fr 1fr;} .row .prog{grid-column:1/-1;} }
@@ -100,11 +101,17 @@ const CONFIG = {
       <optgroup label="Chibi"><option>Chibi – Half Body</option><option>Chibi – Full Body</option></optgroup>
       <optgroup label="Other"><option>Animation</option><option>Other / Not sure</option></optgroup>
     </select>
-    <label>PayPal Email (invoice goes here) *</label><input name="paypal" type="email" required>
-    <label>Character Type (game / OC / VTuber)</label><input name="ctype">
-    <label>Character Name</label><input name="cname">
-    <label>Commission details / references *</label>
-    <textarea name="details" required placeholder="Pose, expressions, atmosphere, background/props, commercial use, rush, reference links…"></textarea>
+    <label>Email *</label><input name="email" type="email" required>
+    <label>Commission details *</label>
+    <textarea name="details" required placeholder="Pose, expressions, atmosphere, background/props, rush, reference links…"></textarea>
+    <label>Reference images (up to 10, 8MB each)</label>
+    <input name="refs" type="file" accept="image/*" multiple id="refs">
+    <label>Is this commission for commercial use? *</label>
+    <label class="chk"><input type="radio" name="commercial" value="Yes" required> Yes (+45% base price)</label>
+    <label class="chk"><input type="radio" name="commercial" value="No"> No, personal use</label>
+    <label>Can I post the finished piece? *</label>
+    <label class="chk"><input type="radio" name="posting" value="Yes, can post" required> Yes, you can post it</label>
+    <label class="chk"><input type="radio" name="posting" value="WITHHOLD - do not post"> No, please keep it private</label>
     <button>Send Request</button>
     <div id="msg"></div>
   </form>
@@ -179,28 +186,30 @@ fetch("queue.json?" + Date.now()).then(r => r.json()).then(d => { data = d; rend
 const form = document.getElementById("form"), msg = document.getElementById("msg");
 form.addEventListener("submit", async e => {
   e.preventDefault();
-  const d = Object.fromEntries(new FormData(form));
+  const fd = new FormData(form), d = Object.fromEntries(fd);
   if (d.website) return; // bot trap
+  const files = fd.getAll("refs").filter(f => f.size);
+  if (files.length > 10) return msg.textContent = "Please attach 10 images or fewer.";
+  if (files.some(f => f.size > 8e6)) return msg.textContent = "Each image must be under 8MB.";
   const btn = form.querySelector("button");
   btn.disabled = true; msg.textContent = "Sending…";
   const field = (name, value) => ({ name, value: (value || "—").slice(0, 1024), inline: true });
+  const body = new FormData();
+  body.append("payload_json", JSON.stringify({
+    username: "Commission Form",
+    allowed_mentions: { parse: [] },
+    embeds: [{
+      title: `New request: ${d.type}`.slice(0, 256),
+      color: 0xff007f,
+      fields: [field("Name", d.name), field("Queue name", d.anon ? "Anonymous" : d.name), field("Contact", d.handle),
+               field("Email", d.email), field("Commercial use", d.commercial), field("Posting", d.posting)],
+      description: d.details.slice(0, 4000),
+      timestamp: new Date().toISOString(),
+    }],
+  }));
+  files.forEach((f, i) => body.append(`files[${i}]`, f, f.name));
   try {
-    const r = await fetch(CONFIG.webhook, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: "Commission Form",
-        allowed_mentions: { parse: [] },
-        embeds: [{
-          title: `New request: ${d.type}`.slice(0, 256),
-          color: 0xff007f,
-          fields: [field("Name", d.name), field("Queue name", d.anon ? "Anonymous" : d.name), field("Contact", d.handle), field("PayPal", d.paypal),
-                   field("Character type", d.ctype), field("Character", d.cname)],
-          description: d.details.slice(0, 4000),
-          timestamp: new Date().toISOString(),
-        }],
-      }),
-    });
+    const r = await fetch(CONFIG.webhook, { method: "POST", body });
     if (!r.ok) throw 0;
     form.reset(); msg.textContent = "Sent! I'll get back to you within a week ★";
   } catch {
