@@ -124,14 +124,15 @@ const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
       <div class="anim"><label>Animation length (seconds)</label><input name="secs" type="number" min="1" value="5"></div>
       <label>Background</label>
       <select name="bg"><option value="0">Simple / solid color (free)</option><option value="1">Detailed</option></select>
-      <label class="chk fees"><input type="checkbox" name="rush"> Rush (+30%)</label>
+      <label class="chk fees"><input type="checkbox" name="rush"> Rush: I need it in less than a week (+30% total price)</label>
     </div>
-    <label>Email *</label><input name="email" type="email" required>
+    <label>Email (for invoice) *</label><input name="email" type="email" required>
     <label>Commission details *</label>
     <textarea name="details" required placeholder="Pose, expressions, atmosphere, background/props, rush, reference links…"></textarea>
     <label>Reference images (up to 10, 8MB each)</label>
     <input name="refs" type="file" accept="image/*" multiple id="refs">
     <label>Is this commission for commercial use? *</label>
+    <div class="stage" style="margin:-2px 0 4px">Commercial use fee: +45% base price.</div>
     <label class="chk"><input type="radio" name="commercial" value="Yes" required> Yes</label>
     <label class="chk"><input type="radio" name="commercial" value="No"> No, personal use</label>
     <label>Can I post the finished piece? *</label>
