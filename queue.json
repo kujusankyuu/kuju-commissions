@@ -2,7 +2,15 @@
   "status": "OPEN",
   "slots": 5,
   "queue": [
-    { "name": "Kat", "type": "Illustration", "progress": 20 },
-    { "name": "noa", "type": "Animation", "progress": 20 }
+    {
+      "name": "",
+      "type": "",
+      "progress": 0
+    },
+    {
+      "name": "",
+      "type": "",
+      "progress": 0
+    }
   ]
 }
