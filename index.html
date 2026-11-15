@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>★ Kuju ★ Commissions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;800&display=swap" rel="stylesheet">
+
+<!-- ================= EDIT HERE ================= -->
+<script>
+const CONFIG = {
+  status: "OPEN",          // OPEN or CLOSED
+  slots: 5,                // max active commissions
+  // Discord webhook URL (or your Cloudflare Worker URL — see README)
+  webhook: "PASTE_YOUR_WEBHOOK_URL_HERE",
+};
+</script>
+<!-- Queue: one commission per line ->  Name | Type | Stage
+     Stages: Waiting, Sketch, Lineart, Color, Render, Done -->
+<script type="text/plain" id="queue">
+Kat | Illustration | Sketch
+noa | Animation | Sketch
+</script>
+<!-- ============================================= -->
+
+<style>
+  :root { --pink:#ff007f; --pink-l:#ffd0e6; --ink:#111; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; font-family:Lexend, sans-serif; color:var(--ink);
+    background:var(--pink) radial-gradient(#ffffff70 1.5px, transparent 1.6px) 0 0/22px 22px;
+    padding:40px 16px 60px;
+  }
+  h1, h2 { color:#fff; text-align:center; font-weight:800; text-shadow:0 0 0 #000, 2px 2px 0 #000, -2px 2px 0 #000, 2px -2px 0 #000, -2px -2px 0 #000; }
+  h1 { font-size:3rem; margin:0 0 6px; letter-spacing:3px; }
+  h2 { font-size:2rem; margin:48px 0 16px; }
+  .sub { text-align:center; color:#fff; font-weight:600; margin:0 0 24px; }
+  .card { max-width:760px; margin:0 auto; background:#fff; border:3px solid #000; border-radius:22px; padding:28px; }
+  nav { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  nav a { background:#2a2a2a; color:#fff; border:2px solid #fff; border-radius:99px; padding:8px 22px; text-decoration:none; font-weight:600; font-size:.85rem; }
+  .badge { display:inline-block; padding:4px 14px; border-radius:99px; font-weight:800; background:#21c37a; color:#fff; }
+  .badge.closed { background:#555; }
+  .row { display:grid; grid-template-columns:1fr 1fr 2fr; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid #f3c; }
+  .row:last-child { border-bottom:0; }
+  .row.head { font-weight:800; background:var(--pink-l); margin:0 -28px; padding:12px 28px; border-bottom:1px solid var(--pink); }
+  .bar { height:12px; background:#eee; border-radius:99px; overflow:hidden; border:1px solid #ccc; }
+  .bar i { display:block; height:100%; background:var(--pink); border-radius:99px; }
+  .stage { font-size:.75rem; margin-top:4px; color:#555; }
+  .empty { color:#aaa; }
+  label { display:block; font-weight:600; margin:16px 0 6px; font-size:.9rem; }
+  input, select, textarea { width:100%; padding:10px 12px; font:inherit; border:2px solid #ddd; border-radius:10px; }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pink); }
+  textarea { min-height:130px; resize:vertical; }
+  .hp { position:absolute; left:-9999px; }
+  button { margin-top:22px; width:100%; padding:14px; font:inherit; font-weight:800; color:#fff; background:var(--pink); border:3px solid #000; border-radius:99px; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:wait; }
+  #msg { text-align:center; font-weight:600; margin-top:14px; }
+  @media (max-width:560px){ .row{grid-template-columns:1fr 1fr;} .row .prog{grid-column:1/-1;} }
+</style>
+</head>
+<body>
+
+<h1>★ KUJU ★</h1>
+<p class="sub">Art Commissions: <span id="status" class="badge"></span></p>
+<nav>
+  <a href="https://kuju.carrd.co/#prices">PRICES</a>
+  <a href="https://kuju.carrd.co/#tos">TERMS OF SERVICE</a>
+  <a href="#queue">QUEUE</a>
+  <a href="#contact">CONTACT</a>
+</nav>
+
+<h2 id="queue">★ Queue ★</h2>
+<div class="card">
+  <p style="margin-top:0">Currently accepting: <b id="count"></b></p>
+  <div class="row head"><span>Client</span><span>Type</span><span>Progress</span></div>
+  <div id="list"></div>
+</div>
+
+<h2 id="contact">★ Contact ★</h2>
+<div class="card">
+  <p style="margin-top:0">Fill out the form below, or reach me on Discord / Twitter <b>@kuju_sankyuu</b>. I'll reply within one week.</p>
+  <form id="form">
+    <input class="hp" name="website" tabindex="-1" autocomplete="off">
+    <label>Name / Brand *</label><input name="name" required>
+    <label>Discord or Twitter username *</label><input name="handle" required placeholder="@">
+    <label>Commission Type *</label>
+    <select name="type" required>
+      <option value="">Choose one…</option>
+      <optgroup label="Full Render"><option>Full Render – Headshot</option><option>Full Render – Half Body</option><option>Full Render – Full Body</option></optgroup>
+      <optgroup label="Chibi"><option>Chibi – Half Body</option><option>Chibi – Full Body</option></optgroup>
+      <optgroup label="Other"><option>Animation</option><option>Other / Not sure</option></optgroup>
+    </select>
+    <label>PayPal Email (invoice goes here) *</label><input name="paypal" type="email" required>
+    <label>Character Type (game / OC / VTuber)</label><input name="ctype">
+    <label>Character Name</label><input name="cname">
+    <label>Commission details / references *</label>
+    <textarea name="details" required placeholder="Pose, expressions, atmosphere, background/props, commercial use, rush, reference links…"></textarea>
+    <button>Send Request</button>
+    <div id="msg"></div>
+  </form>
+</div>
+
+<script>
+// ---- Queue ----
+const STAGES = ["Waiting","Sketch","Lineart","Color","Render","Done"];
+const rows = document.getElementById("queue").textContent.trim().split("\n")
+  .map(l => l.split("|").map(s => s.trim())).filter(r => r[0]);
+const active = rows.filter(r => r[2] !== "Done").length;
+const st = document.getElementById("status");
+st.textContent = CONFIG.status;
+if (CONFIG.status !== "OPEN") st.classList.add("closed");
+document.getElementById("count").textContent = `${active}/${CONFIG.slots}`;
+const list = document.getElementById("list");
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+for (let i = 0; i < Math.max(rows.length, CONFIG.slots); i++) {
+  const [name, type, stage] = rows[i] || [];
+  const pct = name ? Math.round(Math.max(0, STAGES.indexOf(stage)) / (STAGES.length - 1) * 100) : 0;
+  list.insertAdjacentHTML("beforeend", name
+    ? `<div class="row"><span>⭐ ${esc(name)}</span><span>${esc(type||"")}</span><div class="prog"><div class="bar"><i style="width:${pct}%"></i></div><div class="stage">${esc(stage||"")}</div></div></div>`
+    : `<div class="row empty"><span>⭐ Open slot</span><span>—</span><span></span></div>`);
+}
+
+// ---- Form -> Discord ----
+const form = document.getElementById("form"), msg = document.getElementById("msg");
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  const d = Object.fromEntries(new FormData(form));
+  if (d.website) return; // bot trap
+  const btn = form.querySelector("button");
+  btn.disabled = true; msg.textContent = "Sending…";
+  const field = (name, value) => ({ name, value: (value || "—").slice(0, 1024), inline: true });
+  try {
+    const r = await fetch(CONFIG.webhook, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username: "Commission Form",
+        allowed_mentions: { parse: [] },
+        embeds: [{
+          title: `New request: ${d.type}`.slice(0, 256),
+          color: 0xff007f,
+          fields: [field("Name", d.name), field("Contact", d.handle), field("PayPal", d.paypal),
+                   field("Character type", d.ctype), field("Character", d.cname)],
+          description: d.details.slice(0, 4000),
+          timestamp: new Date().toISOString(),
+        }],
+      }),
+    });
+    if (!r.ok) throw 0;
+    form.reset(); msg.textContent = "Sent! I'll get back to you within a week ★";
+  } catch {
+    msg.textContent = "Couldn't send. Please DM me on Discord or Twitter instead.";
+  }
+  btn.disabled = false;
+});
+</script>
+</body>
+</html>
