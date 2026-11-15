@@ -15,11 +15,11 @@ const CONFIG = {
 };
 // Prices for the estimate (keep in sync with Carrd). [low, high] = range.
 const PRICES = {
-  "Full Render – Headshot":  { base: 65,  extra: 0.80, bg: [0, 30, 80], props: [0, [10,10], [30,60]] },
-  "Full Render – Half Body": { base: 95,  extra: 0.80, bg: [0, 30, 80], props: [0, [10,10], [30,60]] },
-  "Full Render – Full Body": { base: 140, extra: 0.80, bg: [0, 30, 80], props: [0, [10,10], [30,60]] },
-  "Chibi – Half Body": { base: 25, extraFlat: 20, bg: [0, 10, 25], props: [0, [5,5], [10,20]] },
-  "Chibi – Full Body": { base: 40, extraFlat: 30, bg: [0, 10, 25], props: [0, [5,5], [10,20]] },
+  "Full Render – Headshot":  { base: 65,  extra: 0.80, detailed: 35, fees: true },
+  "Full Render – Half Body": { base: 95,  extra: 0.80, detailed: 35, fees: true },
+  "Full Render – Full Body": { base: 140, extra: 0.80, detailed: 35, fees: true },
+  "Chibi – Half Body": { base: 25, extraFlat: 20, detailed: 20 },
+  "Chibi – Full Body": { base: 40, extraFlat: 30, detailed: 20 },
   "Animation – Animatic / Storyboard": { perSec: 5 },
   "Animation – Cartoon (chibi, flat color)": { perSec: 10 },
   "Animation – Full Render": { perSec: 15 },
@@ -62,6 +62,7 @@ const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
   #estimate { margin-top:20px; padding:14px; text-align:center; background:var(--pink-l); border:2px solid #000; border-radius:14px; font-weight:800; font-size:1.3rem; }
   #estimate small { display:block; font-size:.75rem; font-weight:400; }
   #estimate:empty, #opts.none { display:none; }
+  #opts:not(.hasFees) .fees,
   #opts.isAnim .still, #opts:not(.isAnim) .anim { display:none; }
   #msg { text-align:center; font-weight:600; margin-top:14px; }
   .row [contenteditable] { outline:none; border-bottom:2px dashed var(--pink); padding:2px; }
@@ -122,10 +123,8 @@ const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
       <div class="still"><label>Extra characters</label><input name="extra" type="number" min="0" max="10" value="0"></div>
       <div class="anim"><label>Animation length (seconds)</label><input name="secs" type="number" min="1" value="5"></div>
       <label>Background</label>
-      <select name="bg"><option value="0">Plain / solid color (free)</option><option value="1">Simple</option><option value="2">Detailed</option></select>
-      <div class="still"><label>Props</label>
-      <select name="props"><option value="0">None</option><option value="1">Small (cup, phone…)</option><option value="2">Complex (car, weapon, pet…)</option></select></div>
-      <label class="chk"><input type="checkbox" name="rush"> Rush (+30%)</label>
+      <select name="bg"><option value="0">Simple / solid color (free)</option><option value="1">Detailed</option></select>
+      <label class="chk fees"><input type="checkbox" name="rush"> Rush (+30%)</label>
     </div>
     <label>Email *</label><input name="email" type="email" required>
     <label>Commission details *</label>
@@ -133,7 +132,7 @@ const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
     <label>Reference images (up to 10, 8MB each)</label>
     <input name="refs" type="file" accept="image/*" multiple id="refs">
     <label>Is this commission for commercial use? *</label>
-    <label class="chk"><input type="radio" name="commercial" value="Yes" required> Yes (+45% base price)</label>
+    <label class="chk"><input type="radio" name="commercial" value="Yes" required> Yes</label>
     <label class="chk"><input type="radio" name="commercial" value="No"> No, personal use</label>
     <label>Can I post the finished piece? *</label>
     <label class="chk"><input type="radio" name="posting" value="Yes, can post" required> Yes, you can post it</label>
@@ -217,20 +216,19 @@ function estimate() {
   opts.classList.toggle("none", !p);
   if (!p) return $("estimate").textContent = "", null;
   opts.classList.toggle("isAnim", !!p.perSec);
-  let lo, hi, base, plus = false;
+  opts.classList.toggle("hasFees", !!p.fees);
+  let total, base, plus = false;
   if (p.perSec) {
     base = p.perSec * Math.max(1, +d.secs || 1);
-    lo = hi = base + (d.bg > 0 ? base * ANIM_BG : 0);
+    total = base + (d.bg > 0 ? base * ANIM_BG : 0);
   } else {
     base = p.base;
-    const n = Math.max(0, +d.extra || 0);
-    lo = hi = base + n * (p.extraFlat ?? Math.round(base * p.extra)) + p.bg[d.bg];
-    const pr = p.props[d.props]; if (pr) { lo += pr[0]; hi += pr[1]; }
-    plus = d.bg == 2;
+    total = base + Math.max(0, +d.extra || 0) * (p.extraFlat ?? Math.round(base * p.extra)) + (d.bg > 0 ? p.detailed : 0);
+    plus = p.fees && d.bg > 0;
   }
-  if (d.commercial === "Yes") { lo += base * COMMERCIAL; hi += base * COMMERCIAL; }
-  if (d.rush) { lo *= 1 + RUSH; hi *= 1 + RUSH; }
-  const txt = (lo === hi ? `$${Math.round(lo)}` : `$${Math.round(lo)}–$${Math.round(hi)}`) + (plus ? "+" : "");
+  if (p.fees && d.commercial === "Yes") total += base * COMMERCIAL;
+  if (p.fees && d.rush) total *= 1 + RUSH;
+  const txt = `$${Math.round(total)}` + (plus ? "+" : "");
   $("estimate").innerHTML = `Estimate: ${txt}<small>Final price confirmed after I review your request.</small>`;
   return txt;
 }
@@ -258,7 +256,7 @@ form.addEventListener("submit", async e => {
       color: 0xff007f,
       fields: [field("Name", d.name), field("Queue name", d.anon ? "Anonymous" : d.name), field("Contact", d.handle),
                field("Email", d.email), field("Commercial use", d.commercial), field("Posting", d.posting),
-               ...(PRICES[d.type] ? [field("Options", PRICES[d.type].perSec ? `${d.secs}s, bg: ${["plain","simple","detailed"][d.bg]}` : `extra chars: ${d.extra}, bg: ${["plain","simple","detailed"][d.bg]}, props: ${["none","small","complex"][d.props]}`), field("Rush", d.rush ? "Yes" : "No"), field("Estimate", estimate())] : [])],
+               ...(PRICES[d.type] ? [field("Options", PRICES[d.type].perSec ? `${d.secs}s, bg: ${["simple","detailed"][d.bg]}` : `extra chars: ${d.extra}, bg: ${["simple","detailed"][d.bg]}`), field("Rush", d.rush ? "Yes" : "No"), field("Estimate", estimate())] : [])],
       description: d.details.slice(0, 4000),
       timestamp: new Date().toISOString(),
     }],
