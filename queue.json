@@ -1,16 +1,5 @@
 {
   "status": "OPEN",
   "slots": 5,
-  "queue": [
-    {
-      "name": "",
-      "type": "",
-      "progress": 0
-    },
-    {
-      "name": "",
-      "type": "",
-      "progress": 0
-    }
-  ]
+  "queue": []
 }
