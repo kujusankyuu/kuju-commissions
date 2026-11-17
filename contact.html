@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>★ Kuju ★ Contact</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Baloo&family=Alexandria:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
+</head>
+<body>
+
+<h1>★ Kuju ★</h1>
+<p class="sub">Art Commission: <span id="status" class="badge"></span></p>
+<nav>
+  <a href="https://kuju.carrd.co/#prices">PRICES</a>
+  <a href="https://kuju.carrd.co/#tos">TERMS OF SERVICE</a>
+  <a href="index.html">QUEUE</a>
+  <a href="contact.html">CONTACT</a>
+</nav>
+
+<h2 id="contact">★ Contact ★</h2>
+<div class="card">
+  <p style="margin-top:0">Fill out the form below, or reach me on Discord / Twitter <b>@kuju_sankyuu</b>. I'll reply within one week.</p>
+  <form id="form">
+    <input class="hp" name="website" tabindex="-1" autocomplete="off">
+    <label>Name / Brand *</label><input name="name" required>
+    <label class="chk"><input type="checkbox" name="anon"> Show me as "Anonymous" in the public queue</label>
+    <label>Preferred method of contact *</label>
+    <select name="contact" required>
+      <option value="">Choose one…</option>
+      <option>Twitter (X)</option><option>Discord</option><option>Email</option>
+    </select>
+    <label>Twitter (X) / Discord username <span id="handleNote">(for the method you chose)</span></label><input name="handle" placeholder="@">
+    <label>Commission Type *</label>
+    <select name="type" required>
+      <option value="">Choose one…</option>
+      <optgroup label="Full Render"><option>Full Render – Headshot</option><option>Full Render – Half Body</option><option>Full Render – Full Body</option></optgroup>
+      <optgroup label="Chibi"><option>Chibi – Half Body</option><option>Chibi – Full Body</option></optgroup>
+      <optgroup label="Animation"><option>Animation – Animatic / Storyboard</option><option>Animation – Cartoon (chibi, flat color)</option><option>Animation – Full Render</option></optgroup>
+      <optgroup label="Other"><option>Other / Not sure</option></optgroup>
+    </select>
+    <div id="opts">
+      <div class="still"><label>Extra characters</label><input name="extra" type="number" min="0" max="10" value="0"></div>
+      <div class="anim"><label>Animation length (seconds)</label><input name="secs" type="number" min="1" value="5"></div>
+      <label>Background</label>
+      <select name="bg"><option value="0">Simple / solid color (free)</option><option value="1">Detailed</option></select>
+      <label class="chk fees"><input type="checkbox" name="rush"> Rush: I need it in less than a week (+30% total price)</label>
+    </div>
+    <label>Email (for invoice) *</label><input name="email" type="email" required>
+    <label>Commission details *</label>
+    <textarea name="details" required placeholder="Pose, expressions, atmosphere, background/props, rush, reference links…"></textarea>
+    <label>Reference images (up to 10, 9MB total)</label>
+    <input name="refs" type="file" accept="image/*" multiple id="refs">
+    <label>Is this commission for commercial use? *</label>
+    <div class="stage" style="margin:-2px 0 4px">Commercial use fee: +45% base price.</div>
+    <label class="chk"><input type="radio" name="commercial" value="Yes" required> Yes</label>
+    <label class="chk"><input type="radio" name="commercial" value="No"> No, personal use</label>
+    <label>Can I post the finished piece? *</label>
+    <label class="chk"><input type="radio" name="posting" value="Yes, can post" required> Yes, you can post it</label>
+    <label class="chk"><input type="radio" name="posting" value="WITHHOLD - do not post"> No, please keep it private</label>
+    <div id="estimate"></div>
+    <button>Send Request</button>
+    <div id="msg"></div>
+  </form>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const form = document.getElementById("form"), msg = document.getElementById("msg");
+// ---- Estimate ----
+function estimate() {
+  const d = Object.fromEntries(new FormData(form)), p = PRICES[d.type];
+  const opts = $("opts");
+  opts.classList.toggle("none", !p);
+  if (!p) return $("estimate").textContent = "", null;
+  opts.classList.toggle("isAnim", !!p.perSec);
+  opts.classList.toggle("hasFees", !!p.fees);
+  let total, base, plus = false;
+  if (p.perSec) {
+    base = p.perSec * Math.max(1, +d.secs || 1);
+    total = base + (d.bg > 0 ? base * ANIM_BG : 0);
+  } else {
+    base = p.base;
+    total = base + Math.max(0, +d.extra || 0) * (p.extraFlat ?? Math.round(base * p.extra)) + (d.bg > 0 ? p.detailed : 0);
+    plus = p.fees && d.bg > 0;
+  }
+  if (p.fees && d.commercial === "Yes") total += base * COMMERCIAL;
+  if (p.fees && d.rush) total *= 1 + RUSH;
+  const txt = `$${Math.round(total)}` + (plus ? "+" : "");
+  $("estimate").innerHTML = `Estimate: ${txt}<small>Final price confirmed after I review your request.</small>`;
+  return txt;
+}
+function syncContact() {
+  const needsHandle = form.contact.value === "Twitter (X)" || form.contact.value === "Discord";
+  form.handle.required = needsHandle;
+  $("handleNote").textContent = needsHandle ? "*" : "(not needed for email)";
+}
+form.addEventListener("input", estimate);
+form.addEventListener("change", syncContact);
+form.addEventListener("change", estimate);
+estimate();
+
+// ---- Form -> Discord ----
+form.addEventListener("submit", async e => {
+  e.preventDefault();
+  const fd = new FormData(form), d = Object.fromEntries(fd);
+  if (d.website) return; // bot trap
+  const files = fd.getAll("refs").filter(f => f.size);
+  if (files.length > 10) return msg.textContent = "Please attach 10 images or fewer.";
+  const total = files.reduce((n, f) => n + f.size, 0);
+  if (total > 9e6) return msg.textContent = `Your images total ${(total/1e6).toFixed(1)}MB. Please keep them under 9MB combined (resize or send fewer), or DM them to me on Discord/Twitter.`;
+  const btn = form.querySelector("button");
+  btn.disabled = true; msg.textContent = "Sending…";
+  const field = (name, value) => ({ name, value: (value || "—").slice(0, 1024), inline: true });
+  const body = new FormData();
+  body.append("payload_json", JSON.stringify({
+    username: "Commission Form",
+    allowed_mentions: { parse: [] },
+    embeds: [{
+      title: `New request: ${d.type}`.slice(0, 256),
+      color: 0xff007f,
+      fields: [field("Name", d.name), field("Queue name", d.anon ? "Anonymous" : d.name), field("Preferred contact", d.contact), field("Username", d.handle),
+               field("Email", d.email), field("Commercial use", d.commercial), field("Posting", d.posting),
+               ...(PRICES[d.type] ? [field("Options", PRICES[d.type].perSec ? `${d.secs}s, bg: ${["simple","detailed"][d.bg]}` : `extra chars: ${d.extra}, bg: ${["simple","detailed"][d.bg]}`), field("Rush", d.rush ? "Yes" : "No"), field("Estimate", estimate())] : [])],
+      description: d.details.slice(0, 4000),
+      timestamp: new Date().toISOString(),
+    }],
+  }));
+  files.forEach((f, i) => body.append(`files[${i}]`, f, f.name));
+  try {
+    const r = await fetch(CONFIG.webhook, { method: "POST", body });
+    if (!r.ok) throw 0;
+    form.reset(); estimate(); syncContact(); msg.textContent = "Sent! I'll get back to you within a week ★";
+  } catch {
+    msg.textContent = "Couldn't send. Please DM me on Discord or Twitter instead.";
+  }
+  btn.disabled = false;
+});
+
+// status badge
+fetch("queue.json?" + Date.now()).then(r => r.json()).then(d => {
+  $("status").textContent = d.status;
+  $("status").classList.toggle("closed", d.status !== "OPEN");
+});
+</script>
+</body>
+</html>

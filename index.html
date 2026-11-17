@@ -3,81 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>★ Kuju ★ Commissions</title>
+<title>★ Kuju ★ Queue</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Baloo&family=Alexandria:wght@400;600;800&display=swap" rel="stylesheet">
-
-<script>
-const CONFIG = {
-  // Discord webhook URL (or your Cloudflare Worker URL)
-  webhook: "https://discord.com/api/webhooks/1571421858035667067/8Z5aFCQlSzx-9HfewNHiNERmlSaRkKC0e_tEcFnRDatFdEDitnyKti0BOj5s0k9aPxba",
-  repo: "kujusankyuu/kuju-commissions",
-};
-// Prices for the estimate (keep in sync with Carrd). [low, high] = range.
-const PRICES = {
-  "Full Render – Headshot":  { base: 65,  extra: 0.80, detailed: 35, fees: true },
-  "Full Render – Half Body": { base: 95,  extra: 0.80, detailed: 35, fees: true },
-  "Full Render – Full Body": { base: 140, extra: 0.80, detailed: 35, fees: true },
-  "Chibi – Half Body": { base: 25, extraFlat: 20, detailed: 20 },
-  "Chibi – Full Body": { base: 40, extraFlat: 30, detailed: 20 },
-  "Animation – Animatic / Storyboard": { perSec: 5 },
-  "Animation – Cartoon (chibi, flat color)": { perSec: 10 },
-  "Animation – Full Render": { perSec: 15 },
-};
-const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
-</script>
-
-<style>
-  :root { --pink:#ff007f; --pink-l:#ffd0e6; --ink:#111; }
-  * { box-sizing:border-box; }
-  body {
-    margin:0; font-family:Alexandria, sans-serif; color:var(--ink);
-    background:var(--pink) radial-gradient(#ffffff70 1.5px, transparent 1.6px) 0 0/22px 22px;
-    padding:40px 16px 60px;
-  }
-  h1, h2 { color:#fff; text-align:center; font-family:Bungee, sans-serif; font-weight:400; -webkit-text-stroke:0.05em #000; }
-  h1 { font-size:52px; margin:0 0 6px; }
-  h2 { font-size:2rem; margin:48px 0 16px; }
-  .sub { text-align:center; color:#fff; font-family:Baloo, cursive; font-size:28px; -webkit-text-stroke:0.05em #000; margin:0 0 24px; }
-  .sub .badge { font-family:Alexandria, sans-serif; font-size:1rem; -webkit-text-stroke:0; vertical-align:middle; }
-  .card { max-width:760px; margin:0 auto; background:#fff; border:3px solid #000; border-radius:22px; padding:28px; }
-  nav { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
-  nav a { background:#2a2a2a; color:#fff; border:2px solid #fff; border-radius:99px; padding:8px 22px; text-decoration:none; font-weight:600; font-size:.85rem; }
-  .badge { display:inline-block; padding:4px 14px; border-radius:99px; font-weight:800; background:#21c37a; color:#fff; }
-  .badge.closed { background:#555; }
-  .row { display:grid; grid-template-columns:1fr 1fr 2fr; gap:12px; align-items:center; padding:12px 0; border-bottom:1px solid #f3c; }
-  .row:last-child { border-bottom:0; }
-  .row.head { font-weight:800; background:var(--pink-l); margin:0 -28px; padding:12px 28px; border-bottom:1px solid var(--pink); }
-  .bar { height:12px; background:#eee; border-radius:99px; overflow:hidden; border:1px solid #ccc; }
-  .bar i { display:block; height:100%; background:var(--pink); border-radius:99px; }
-  .stage { font-size:.75rem; margin-top:4px; color:#555; }
-  .empty { color:#aaa; }
-  label { display:block; font-weight:600; margin:16px 0 6px; font-size:.9rem; }
-  input, select, textarea { width:100%; padding:10px 12px; font:inherit; border:2px solid #ddd; border-radius:10px; }
-  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--pink); }
-  textarea { min-height:130px; resize:vertical; }
-  .hp { position:absolute; left:-9999px; }
-  button { margin-top:22px; width:100%; padding:14px; font:inherit; font-weight:800; color:#fff; background:var(--pink); border:3px solid #000; border-radius:99px; cursor:pointer; }
-  button:disabled { opacity:.6; cursor:wait; }
-  #estimate { margin-top:20px; padding:14px; text-align:center; background:var(--pink-l); border:2px solid #000; border-radius:14px; font-weight:800; font-size:1.3rem; }
-  #estimate small { display:block; font-size:.75rem; font-weight:400; }
-  #estimate:empty, #opts.none { display:none; }
-  #opts:not(.hasFees) .fees,
-  #opts.isAnim .still, #opts:not(.isAnim) .anim { display:none; }
-  #msg { text-align:center; font-weight:600; margin-top:14px; }
-  .row [contenteditable] { outline:none; border-bottom:2px dashed var(--pink); padding:2px; }
-  .row input[type=range] { width:100%; accent-color:var(--pink); padding:0; border:0; }
-  .x { width:auto; margin:0 0 0 6px; padding:0 8px; font-size:.8rem; border-width:2px; background:#333; }
-  #tools { display:none; gap:8px; flex-wrap:wrap; margin-top:16px; }
-  #tools button { margin:0; width:auto; flex:1; padding:10px 16px; }
-  .editing #tools { display:flex; }
-  .editing .row { grid-template-columns:1fr 1fr 2fr auto; }
-  .chk { display:flex; gap:8px; align-items:center; font-weight:400; }
-  .chk { margin:6px 0; }
-  .chk input { width:auto; }
-  #editLink { display:block; text-align:center; margin-top:40px; color:#fff8; font-size:.75rem; }
-  @media (max-width:560px){ .row{grid-template-columns:1fr 1fr;} .row .prog{grid-column:1/-1;} }
-</style>
+<link rel="stylesheet" href="style.css">
+<script src="config.js"></script>
 </head>
 <body>
 
@@ -86,8 +16,8 @@ const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
 <nav>
   <a href="https://kuju.carrd.co/#prices">PRICES</a>
   <a href="https://kuju.carrd.co/#tos">TERMS OF SERVICE</a>
-  <a href="#queue">QUEUE</a>
-  <a href="#contact">CONTACT</a>
+  <a href="index.html">QUEUE</a>
+  <a href="contact.html">CONTACT</a>
 </nav>
 
 <h2 id="queue">★ Queue ★</h2>
@@ -103,54 +33,10 @@ const COMMERCIAL = 0.45, RUSH = 0.30, ANIM_BG = 0.50;
   <div id="saveMsg" class="stage" style="text-align:center"></div>
 </div>
 
-<h2 id="contact">★ Contact ★</h2>
-<div class="card">
-  <p style="margin-top:0">Fill out the form below, or reach me on Discord / Twitter <b>@kuju_sankyuu</b>. I'll reply within one week.</p>
-  <form id="form">
-    <input class="hp" name="website" tabindex="-1" autocomplete="off">
-    <label>Name / Brand *</label><input name="name" required>
-    <label class="chk"><input type="checkbox" name="anon"> Show me as "Anonymous" in the public queue</label>
-    <label>Preferred method of contact *</label>
-    <select name="contact" required>
-      <option value="">Choose one…</option>
-      <option>Twitter (X)</option><option>Discord</option><option>Email</option>
-    </select>
-    <label>Twitter (X) / Discord username <span id="handleNote">(for the method you chose)</span></label><input name="handle" placeholder="@">
-    <label>Commission Type *</label>
-    <select name="type" required>
-      <option value="">Choose one…</option>
-      <optgroup label="Full Render"><option>Full Render – Headshot</option><option>Full Render – Half Body</option><option>Full Render – Full Body</option></optgroup>
-      <optgroup label="Chibi"><option>Chibi – Half Body</option><option>Chibi – Full Body</option></optgroup>
-      <optgroup label="Animation"><option>Animation – Animatic / Storyboard</option><option>Animation – Cartoon (chibi, flat color)</option><option>Animation – Full Render</option></optgroup>
-      <optgroup label="Other"><option>Other / Not sure</option></optgroup>
-    </select>
-    <div id="opts">
-      <div class="still"><label>Extra characters</label><input name="extra" type="number" min="0" max="10" value="0"></div>
-      <div class="anim"><label>Animation length (seconds)</label><input name="secs" type="number" min="1" value="5"></div>
-      <label>Background</label>
-      <select name="bg"><option value="0">Simple / solid color (free)</option><option value="1">Detailed</option></select>
-      <label class="chk fees"><input type="checkbox" name="rush"> Rush: I need it in less than a week (+30% total price)</label>
-    </div>
-    <label>Email (for invoice) *</label><input name="email" type="email" required>
-    <label>Commission details *</label>
-    <textarea name="details" required placeholder="Pose, expressions, atmosphere, background/props, rush, reference links…"></textarea>
-    <label>Reference images (up to 10, 9MB total)</label>
-    <input name="refs" type="file" accept="image/*" multiple id="refs">
-    <label>Is this commission for commercial use? *</label>
-    <div class="stage" style="margin:-2px 0 4px">Commercial use fee: +45% base price.</div>
-    <label class="chk"><input type="radio" name="commercial" value="Yes" required> Yes</label>
-    <label class="chk"><input type="radio" name="commercial" value="No"> No, personal use</label>
-    <label>Can I post the finished piece? *</label>
-    <label class="chk"><input type="radio" name="posting" value="Yes, can post" required> Yes, you can post it</label>
-    <label class="chk"><input type="radio" name="posting" value="WITHHOLD - do not post"> No, please keep it private</label>
-    <div id="estimate"></div>
-    <button>Send Request</button>
-    <div id="msg"></div>
-  </form>
-</div>
 <a href="#" id="editLink">✎ edit queue</a>
 
 <script>
+if (location.hash === "#contact") location.replace("contact.html"); // old links
 // ---- Queue ----
 let data = { status:"OPEN", slots:5, queue:[] }, sha = null, editing = false;
 const $ = id => document.getElementById(id);
@@ -214,77 +100,6 @@ $("saveBtn").onclick = async () => {
 };
 
 fetch("queue.json?" + Date.now()).then(r => r.json()).then(d => { data = d; render(); });
-
-const form = document.getElementById("form"), msg = document.getElementById("msg");
-// ---- Estimate ----
-function estimate() {
-  const d = Object.fromEntries(new FormData(form)), p = PRICES[d.type];
-  const opts = $("opts");
-  opts.classList.toggle("none", !p);
-  if (!p) return $("estimate").textContent = "", null;
-  opts.classList.toggle("isAnim", !!p.perSec);
-  opts.classList.toggle("hasFees", !!p.fees);
-  let total, base, plus = false;
-  if (p.perSec) {
-    base = p.perSec * Math.max(1, +d.secs || 1);
-    total = base + (d.bg > 0 ? base * ANIM_BG : 0);
-  } else {
-    base = p.base;
-    total = base + Math.max(0, +d.extra || 0) * (p.extraFlat ?? Math.round(base * p.extra)) + (d.bg > 0 ? p.detailed : 0);
-    plus = p.fees && d.bg > 0;
-  }
-  if (p.fees && d.commercial === "Yes") total += base * COMMERCIAL;
-  if (p.fees && d.rush) total *= 1 + RUSH;
-  const txt = `$${Math.round(total)}` + (plus ? "+" : "");
-  $("estimate").innerHTML = `Estimate: ${txt}<small>Final price confirmed after I review your request.</small>`;
-  return txt;
-}
-function syncContact() {
-  const needsHandle = form.contact.value === "Twitter (X)" || form.contact.value === "Discord";
-  form.handle.required = needsHandle;
-  $("handleNote").textContent = needsHandle ? "*" : "(not needed for email)";
-}
-form.addEventListener("input", estimate);
-form.addEventListener("change", syncContact);
-form.addEventListener("change", estimate);
-estimate();
-
-// ---- Form -> Discord ----
-form.addEventListener("submit", async e => {
-  e.preventDefault();
-  const fd = new FormData(form), d = Object.fromEntries(fd);
-  if (d.website) return; // bot trap
-  const files = fd.getAll("refs").filter(f => f.size);
-  if (files.length > 10) return msg.textContent = "Please attach 10 images or fewer.";
-  const total = files.reduce((n, f) => n + f.size, 0);
-  if (total > 9e6) return msg.textContent = `Your images total ${(total/1e6).toFixed(1)}MB. Please keep them under 9MB combined (resize or send fewer), or DM them to me on Discord/Twitter.`;
-  const btn = form.querySelector("button");
-  btn.disabled = true; msg.textContent = "Sending…";
-  const field = (name, value) => ({ name, value: (value || "—").slice(0, 1024), inline: true });
-  const body = new FormData();
-  body.append("payload_json", JSON.stringify({
-    username: "Commission Form",
-    allowed_mentions: { parse: [] },
-    embeds: [{
-      title: `New request: ${d.type}`.slice(0, 256),
-      color: 0xff007f,
-      fields: [field("Name", d.name), field("Queue name", d.anon ? "Anonymous" : d.name), field("Preferred contact", d.contact), field("Username", d.handle),
-               field("Email", d.email), field("Commercial use", d.commercial), field("Posting", d.posting),
-               ...(PRICES[d.type] ? [field("Options", PRICES[d.type].perSec ? `${d.secs}s, bg: ${["simple","detailed"][d.bg]}` : `extra chars: ${d.extra}, bg: ${["simple","detailed"][d.bg]}`), field("Rush", d.rush ? "Yes" : "No"), field("Estimate", estimate())] : [])],
-      description: d.details.slice(0, 4000),
-      timestamp: new Date().toISOString(),
-    }],
-  }));
-  files.forEach((f, i) => body.append(`files[${i}]`, f, f.name));
-  try {
-    const r = await fetch(CONFIG.webhook, { method: "POST", body });
-    if (!r.ok) throw 0;
-    form.reset(); estimate(); syncContact(); msg.textContent = "Sent! I'll get back to you within a week ★";
-  } catch {
-    msg.textContent = "Couldn't send. Please DM me on Discord or Twitter instead.";
-  }
-  btn.disabled = false;
-});
 </script>
 </body>
 </html>
