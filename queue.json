@@ -1,5 +1,11 @@
 {
   "status": "OPEN",
   "slots": 5,
-  "queue": []
+  "queue": [
+    {
+      "name": "TBiJ",
+      "type": "Illustration",
+      "progress": 20
+    }
+  ]
 }
